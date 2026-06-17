@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resilient JSON Viewer</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Fira+Code&display=swap" rel="stylesheet">
+    <!-- JSON5 -->
+    <script src="https://cdn.jsdelivr.net/npm/json5@2/dist/index.min.js"></script>
+    <!-- Marked.js for Markdown Preview -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- DOMPurify for safe markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    
+    <style>
+        :root {
+            --bg: #0b0f19;
+            --surface: #171c28;
+            --surface-hover: #212836;
+            --primary: #6366f1;
+            --primary-hover: #818cf8;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border: #2e364f;
+            --error: #f43f5e;
+            --success: #10b981;
+            
+            --key-color: #38bdf8;
+            --string-color: #a7f3d0;
+            --number-color: #fca5a5;
+            --boolean-color: #c084fc;
+            --null-color: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            background: rgba(23, 28, 40, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        button {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: var(--surface-hover);
+            border-color: var(--primary);
+        }
+
+        button.primary {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        button.primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+            position: relative;
+        }
+
+        .pane:last-child {
+            border-right: none;
+        }
+
+        .pane-header {
+            background: var(--surface);
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-container {
+            flex: 1;
+            position: relative;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            color: var(--text);
+            border: none;
+            padding: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            resize: none;
+            outline: none;
+            line-height: 1.5;
+        }
+
+        .output-container {
+            flex: 1;
+            overflow: auto;
+            padding: 1rem;
+            background: #0d1117;
+        }
+
+        /* Tree Styles */
+        .tree-wrapper {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        details { margin: 0; }
+        
+        summary {
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            align-items: flex-start;
+            border-radius: 4px;
+            padding: 2px 0;
+        }
+        
+        summary:hover {
+            background: rgba(255,255,255,0.03);
+        }
+        
+        summary::before {
+            content: '▶';
+            display: inline-block;
+            width: 1.5rem;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            transition: transform 0.15s;
+            text-align: center;
+            line-height: 1.6rem;
+            flex-shrink: 0;
+        }
+        
+        details[open] > summary::before {
+            transform: rotate(90deg);
+        }
+        
+        summary::-webkit-details-marker { display: none; }
+        
+        .tree-children {
+            margin-left: 0.75rem;
+            padding-left: 0.75rem;
+            border-left: 1px solid var(--border);
+        }
+        
+        .tree-node {
+            display: flex;
+            align-items: flex-start;
+            padding: 2px 0;
+        }
+        
+        .tree-key { color: var(--key-color); margin-right: 0.5rem; }
+        .tree-string { 
+            color: var(--string-color); 
+            word-break: break-all;
+            white-space: pre-wrap;
+        }
+        .tree-number { color: var(--number-color); }
+        .tree-boolean { color: var(--boolean-color); }
+        .tree-null { color: var(--null-color); font-style: italic; }
+        .tree-info { color: var(--text-muted); font-size: 0.8rem; margin-left: 0.5rem; user-select: none;}
+
+        .action-btn {
+            background: rgba(99, 102, 241, 0.2);
+            color: var(--primary-hover);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            padding: 0.1rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .action-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .error-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--error);
+            color: white;
+            padding: 1rem;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            max-height: 50%;
+            overflow: auto;
+            z-index: 20;
+        }
+        
+        .error-overlay.show {
+            transform: translateY(0);
+        }
+
+        .close-error {
+            position: absolute;
+            top: 0.5rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 0;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+        .modal-content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            width: 80%;
+            max-width: 900px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .modal-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .markdown-body {
+            font-family: 'Outfit', sans-serif;
+        }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            color: #fff;
+        }
+        .markdown-body a { color: var(--primary-hover); text-decoration: none; }
+        .markdown-body a:hover { text-decoration: underline; }
+        .markdown-body code {
+            background: rgba(255,255,255,0.1);
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9em;
+        }
+        .markdown-body pre {
+            background: #0d1117;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            margin: 1em 0;
+        }
+        .markdown-body pre code { background: none; padding: 0; }
+        .markdown-body p, .markdown-body ul, .markdown-body ol { margin-bottom: 1em; }
+        .markdown-body img { max-width: 100%; border-radius: 8px; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M3 15h6"/><path d="M3 18h6"/><path d="M14 15h6"/><path d="M14 18h6"/></svg>
+            Resilient JSON
+        </div>
+        <div class="actions">
+            <button onclick="formatJSON()" class="primary">Format & Repair</button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- Input Pane -->
+        <div class="pane">
+            <div class="pane-header">
+                <span>Input (Paste your messy Python Dict or JSON here)</span>
+                <button class="action-btn" onclick="document.getElementById('input').value = ''">Clear</button>
+            </div>
+            <div class="editor-container">
+                <textarea id="input" placeholder="Paste string here... e.g. {'key': 'value', 'None': None, 'True': False}"></textarea>
+                <div id="errorOverlay" class="error-overlay">
+                    <button class="close-error" onclick="hideError()">×</button>
+                    <div id="errorText"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Output Pane -->
+        <div class="pane">
+            <div class="pane-header">
+                <span>Output Viewer</span>
+                <div style="display:flex; gap: 0.5rem;">
+                    <button class="action-btn" onclick="expandAll()">Expand All</button>
+                    <button class="action-btn" onclick="collapseAll()">Collapse All</button>
+                    <button class="action-btn" onclick="copyValidJSON()">Copy Valid JSON</button>
+                </div>
+            </div>
+            <div class="output-container" id="output">
+                <div style="color: var(--text-muted); text-align: center; margin-top: 2rem;">
+                    Hit "Format & Repair" to see the magic.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Markdown Modal -->
+    <div class="modal-overlay" id="mdModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="margin:0;">Content Preview</h3>
+                <button class="action-btn" onclick="closeModal()">Close</button>
+            </div>
+            <div class="modal-body markdown-body" id="mdBody"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentValidData = null;
+
+        function escapeHtml(unsafe) {
+            return (unsafe || "")
+                .toString()
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function showError(msg) {
+            document.getElementById('errorText').innerText = msg;
+            document.getElementById('errorOverlay').classList.add('show');
+        }
+
+        function hideError() {
+            document.getElementById('errorOverlay').classList.remove('show');
+        }
+
+        function fixPythonStrings(str) {
+            let res = str;
+            // Fix None, True, False when they are values in dictionaries
+            res = res.replace(/:\s*None\b/g, ': null');
+            res = res.replace(/:\s*True\b/g, ': true');
+            res = res.replace(/:\s*False\b/g, ': false');
+            
+            // Fix in lists/arrays
+            res = res.replace(/,\s*None\b/g, ', null');
+            res = res.replace(/,\s*True\b/g, ', true');
+            res = res.replace(/,\s*False\b/g, ', false');
+            
+            // Fix at beginning of lists
+            res = res.replace(/\[\s*None\b/g, '[null');
+            res = res.replace(/\[\s*True\b/g, '[true');
+            res = res.replace(/\[\s*False\b/g, '[false');
+            
+            return res;
+        }
+
+        function formatJSON() {
+            hideError();
+            const inputEl = document.getElementById('input');
+            let rawStr = inputEl.value.trim();
+            if (!rawStr) return;
+
+            // Remove typical prefixes when pasting from logs
+            rawStr = rawStr.replace(/^JSON:\s*/i, '');
+            rawStr = rawStr.replace(/^```json\s*/i, '').replace(/```\s*$/i, '');
+
+            let cleanedStr = fixPythonStrings(rawStr);
+            let parsedData;
+
+            try {
+                // JSON5 handles single quotes, unquoted keys, trailing commas, etc.
+                parsedData = JSON5.parse(cleanedStr);
+            } catch (e) {
+                showError("Failed to parse: " + e.message + "\n\nAttempted string:\n" + cleanedStr.substring(0, 300) + (cleanedStr.length > 300 ? "..." : ""));
+                return;
+            }
+
+            currentValidData = parsedData;
+            renderTree(parsedData);
+        }
+
+        // Generate a random ID for previews to avoid quote escaping issues in HTML string
+        const previewCache = {};
+
+        window.previewText = function(cacheId, mode) {
+            const text = previewCache[cacheId];
+            const modal = document.getElementById('mdModal');
+            const body = document.getElementById('mdBody');
+            if (mode === 'markdown') {
+                body.innerHTML = DOMPurify.sanitize(marked.parse(text));
+            } else {
+                body.innerHTML = '<pre style="white-space: pre-wrap; font-family: \'Fira Code\', monospace;">' + escapeHtml(text) + '</pre>';
+            }
+            modal.classList.add('active');
+        }
+
+        window.closeModal = function() {
+            document.getElementById('mdModal').classList.remove('active');
+        }
+
+        function createTreeHTML(data, keyName = null, isLast = true) {
+            const keyHTML = keyName !== null ? `<span class="tree-key">"${escapeHtml(keyName)}"</span>: ` : '';
+
+            if (data === null) return `<div class="tree-node">${keyHTML}<span class="tree-null">null</span>${isLast?'':','}</div>`;
+            if (typeof data === 'boolean') return `<div class="tree-node">${keyHTML}<span class="tree-boolean">${data}</span>${isLast?'':','}</div>`;
+            if (typeof data === 'number') return `<div class="tree-node">${keyHTML}<span class="tree-number">${data}</span>${isLast?'':','}</div>`;
+            
+            if (typeof data === 'string') {
+                const escaped = escapeHtml(data);
+                const isMarkdown = data.includes('\\n') || data.includes('\n') || data.includes('#') || data.includes('**') || data.includes('```');
+                let extra = '';
+                
+                // If string is long or contains markdown/newlines
+                if (data.length > 60 || data.includes('\\n') || data.includes('\n')) {
+                    const cacheId = 'str_' + Math.random().toString(36).substr(2, 9);
+                    previewCache[cacheId] = data;
+                    const mode = isMarkdown ? "'markdown'" : "'text'";
+                    extra = `<button class="action-btn" onclick="previewText('${cacheId}', ${mode})">Preview ${isMarkdown ? 'Markdown' : 'Text'}</button>`;
+                }
+                
+                // Truncate visually
+                let displayStr = data;
+                if (displayStr.length > 80) displayStr = displayStr.substring(0, 80) + '...';
+                displayStr = escapeHtml(displayStr);
+                
+                return `<div class="tree-node">${keyHTML}<span class="tree-string">"${displayStr}"</span>${extra}${isLast?'':','}</div>`;
+            }
+
+            if (Array.isArray(data)) {
+                if (data.length === 0) return `<div class="tree-node">${keyHTML}[]${isLast?'':','}</div>`;
+                let html = `<details open><summary>${keyHTML}[<span class="tree-info">${data.length} items</span>]</summary><div class="tree-children">`;
+                data.forEach((item, index) => {
+                    html += createTreeHTML(item, null, index === data.length - 1);
+                });
+                html += `</div><div style="margin-left:1.5rem">]${isLast?'':','}</div></details>`;
+                return html;
+            }
+
+            if (typeof data === 'object') {
+                const keys = Object.keys(data);
+                if (keys.length === 0) return `<div class="tree-node">${keyHTML}{}${isLast?'':','}</div>`;
+                let html = `<details open><summary>${keyHTML}{<span class="tree-info">${keys.length} keys</span>}</summary><div class="tree-children">`;
+                keys.forEach((k, index) => {
+                    html += createTreeHTML(data[k], k, index === keys.length - 1);
+                });
+                html += `</div><div style="margin-left:1.5rem">}${isLast?'':','}</div></details>`;
+                return html;
+            }
+        }
+
+        function renderTree(data) {
+            // Clear preview cache on new render to avoid memory leaks
+            for(let k in previewCache) delete previewCache[k];
+            
+            const container = document.getElementById('output');
+            container.innerHTML = '<div class="tree-wrapper">' + createTreeHTML(data) + '</div>';
+        }
+
+        function expandAll() {
+            document.querySelectorAll('details').forEach(el => el.setAttribute('open', ''));
+        }
+
+        function collapseAll() {
+            document.querySelectorAll('details').forEach(el => el.removeAttribute('open'));
+        }
+
+        function copyValidJSON() {
+            if (!currentValidData) {
+                alert("Nothing to copy. Please format a valid JSON first.");
+                return;
+            }
+            const validStr = JSON.stringify(currentValidData, null, 2);
+            navigator.clipboard.writeText(validStr).then(() => {
+                alert("Copied Valid JSON to clipboard!");
+            });
+        }
+
+        // Close modal on background click
+        window.addEventListener('click', (e) => {
+            const modal = document.getElementById('mdModal');
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+        
+    </script>
+</body>
+</html>
