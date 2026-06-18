@@ -4,15 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resilient JSON Viewer</title>
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text x='50%' y='50%' font-family='Courier New, monospace' font-size='65' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='central'>{}</text></svg>">
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Fira+Code&display=swap" rel="stylesheet">
     <!-- JSON5 -->
-    <script src="https://cdn.jsdelivr.net/npm/json5@2/dist/index.min.js"></script>
-    <!-- Marked.js for Markdown Preview -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- DOMPurify for safe markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/json5@2.2.3/dist/index.min.js"></script>
+    <!-- Marked.js for Markdown Preview (stable version) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <!-- DOMPurify for safe HTML/Markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
-    
+    <!-- Tabulator Grid -->
+    <link href="https://unpkg.com/tabulator-tables@6.2.1/dist/css/tabulator_midnight.min.css" rel="stylesheet">
+    <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.2.1/dist/js/tabulator.min.js"></script>
+
     <style>
         :root {
             --bg: #0b0f19;
@@ -33,11 +38,7 @@
             --null-color: #64748b;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: 'Outfit', sans-serif;
@@ -53,7 +54,7 @@
             background: rgba(23, 28, 40, 0.8);
             backdrop-filter: blur(10px);
             border-bottom: 1px solid var(--border);
-            padding: 1rem 2rem;
+            padding: 0.8rem 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -61,7 +62,7 @@
         }
 
         .logo {
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: 600;
             background: linear-gradient(135deg, #6366f1, #a855f7);
             -webkit-background-clip: text;
@@ -71,20 +72,18 @@
             gap: 0.5rem;
         }
 
-        .actions {
-            display: flex;
-            gap: 1rem;
-        }
+        .actions { display: flex; gap: 0.8rem; align-items: center; }
 
         button {
             background: var(--surface);
             color: var(--text);
             border: 1px solid var(--border);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
             font-family: inherit;
             cursor: pointer;
             transition: all 0.2s;
+            font-size: 0.85rem;
             font-weight: 600;
         }
 
@@ -99,9 +98,7 @@
             border-color: var(--primary);
         }
 
-        button.primary:hover {
-            background: var(--primary-hover);
-        }
+        button.primary:hover { background: var(--primary-hover); }
 
         .main-container {
             display: flex;
@@ -117,14 +114,10 @@
             position: relative;
         }
 
-        .pane:last-child {
-            border-right: none;
-        }
-
         .pane-header {
             background: var(--surface);
-            padding: 0.5rem 1rem;
-            font-size: 0.9rem;
+            padding: 0.4rem 1rem;
+            font-size: 0.85rem;
             color: var(--text-muted);
             border-bottom: 1px solid var(--border);
             display: flex;
@@ -132,10 +125,25 @@
             align-items: center;
         }
 
-        .editor-container {
-            flex: 1;
-            position: relative;
+        .pane-tabs {
+            display: flex;
+            gap: 0.2rem;
         }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            border-radius: 0;
+            color: var(--text-muted);
+            padding: 0.3rem 0.8rem;
+        }
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .editor-container { flex: 1; position: relative; display: flex; flex-direction: column; }
 
         textarea {
             width: 100%;
@@ -145,7 +153,7 @@
             border: none;
             padding: 1rem;
             font-family: 'Fira Code', monospace;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             resize: none;
             outline: none;
             line-height: 1.5;
@@ -156,17 +164,21 @@
             overflow: auto;
             padding: 1rem;
             background: #0d1117;
+            position: relative;
+        }
+        
+        .output-container.no-pad {
+            padding: 0;
         }
 
         /* Tree Styles */
         .tree-wrapper {
             font-family: 'Fira Code', monospace;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             line-height: 1.6;
         }
 
         details { margin: 0; }
-        
         summary {
             cursor: pointer;
             list-style: none;
@@ -175,27 +187,19 @@
             border-radius: 4px;
             padding: 2px 0;
         }
-        
-        summary:hover {
-            background: rgba(255,255,255,0.03);
-        }
-        
+        summary:hover { background: rgba(255,255,255,0.03); }
         summary::before {
             content: '▶';
             display: inline-block;
             width: 1.5rem;
-            font-size: 0.7rem;
+            font-size: 0.6rem;
             color: var(--text-muted);
             transition: transform 0.15s;
             text-align: center;
             line-height: 1.6rem;
             flex-shrink: 0;
         }
-        
-        details[open] > summary::before {
-            transform: rotate(90deg);
-        }
-        
+        details[open] > summary::before { transform: rotate(90deg); }
         summary::-webkit-details-marker { display: none; }
         
         .tree-children {
@@ -203,14 +207,13 @@
             padding-left: 0.75rem;
             border-left: 1px solid var(--border);
         }
-        
         .tree-node {
             display: flex;
             align-items: flex-start;
             padding: 2px 0;
         }
-        
         .tree-key { color: var(--key-color); margin-right: 0.5rem; }
+        .tree-quote { color: var(--string-color); opacity: 0.5; }
         .tree-string { 
             color: var(--string-color); 
             word-break: break-all;
@@ -219,136 +222,66 @@
         .tree-number { color: var(--number-color); }
         .tree-boolean { color: var(--boolean-color); }
         .tree-null { color: var(--null-color); font-style: italic; }
-        .tree-info { color: var(--text-muted); font-size: 0.8rem; margin-left: 0.5rem; user-select: none;}
 
         .action-btn {
-            background: rgba(99, 102, 241, 0.2);
+            background: rgba(99, 102, 241, 0.1);
             color: var(--primary-hover);
-            border: 1px solid rgba(99, 102, 241, 0.4);
-            padding: 0.1rem 0.5rem;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            padding: 0.1rem 0.4rem;
             border-radius: 4px;
-            font-size: 0.75rem;
-            margin-left: 0.5rem;
+            font-size: 0.7rem;
+            margin-left: 0.4rem;
             cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
         }
-        .action-btn:hover {
-            background: var(--primary);
-            color: white;
-        }
+        .action-btn:hover { background: var(--primary); color: white; }
+
+        .icon-btn { display: flex; align-items: center; justify-content: center; padding: 0.3rem; background: transparent; border-color: transparent;}
+        .icon-btn:hover { background: rgba(255,255,255,0.1); }
+        .icon-btn svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; }
 
         .error-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--error);
-            color: white;
-            padding: 1rem;
-            transform: translateY(100%);
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            font-family: 'Fira Code', monospace;
-            font-size: 0.85rem;
-            max-height: 50%;
-            overflow: auto;
-            z-index: 20;
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: var(--error); color: white; padding: 1rem;
+            transform: translateY(100%); transition: transform 0.3s;
+            font-family: 'Fira Code', monospace; font-size: 0.8rem; z-index: 20; max-height: 50%; overflow: auto;
         }
-        
-        .error-overlay.show {
-            transform: translateY(0);
-        }
+        .error-overlay.show { transform: translateY(0); }
 
-        .close-error {
-            position: absolute;
-            top: 0.5rem;
-            right: 1rem;
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: 1.2rem;
-            padding: 0;
-        }
+        /* Fullscreen */
+        .pane.fullscreen { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: var(--bg); border: none; }
 
         /* Modal Styles */
         .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(5px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 50;
-            opacity: 0;
-            transition: opacity 0.2s;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
+            display: none; justify-content: center; align-items: center; z-index: 50; opacity: 0; transition: opacity 0.2s;
         }
-        .modal-overlay.active {
-            display: flex;
-            opacity: 1;
-        }
+        .modal-overlay.active { display: flex; opacity: 1; }
         .modal-content {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            width: 80%;
-            max-width: 900px;
-            max-height: 85vh;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+            width: 80%; max-width: 900px; max-height: 85vh; display: flex; flex-direction: column;
         }
-        .modal-header {
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .modal-body {
-            padding: 1.5rem;
-            overflow-y: auto;
-            color: var(--text);
-            line-height: 1.6;
-        }
-        .markdown-body {
-            font-family: 'Outfit', sans-serif;
-        }
-        .markdown-body h1, .markdown-body h2, .markdown-body h3 {
-            margin-top: 1.5em;
-            margin-bottom: 0.5em;
-            color: #fff;
-        }
-        .markdown-body a { color: var(--primary-hover); text-decoration: none; }
-        .markdown-body a:hover { text-decoration: underline; }
-        .markdown-body code {
-            background: rgba(255,255,255,0.1);
-            padding: 0.2em 0.4em;
-            border-radius: 4px;
-            font-family: 'Fira Code', monospace;
-            font-size: 0.9em;
-        }
-        .markdown-body pre {
-            background: #0d1117;
-            padding: 1rem;
-            border-radius: 8px;
-            overflow-x: auto;
-            border: 1px solid var(--border);
-            margin: 1em 0;
-        }
-        .markdown-body pre code { background: none; padding: 0; }
-        .markdown-body p, .markdown-body ul, .markdown-body ol { margin-bottom: 1em; }
-        .markdown-body img { max-width: 100%; border-radius: 8px; }
-
+        .modal-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 1.5rem; overflow-y: auto; line-height: 1.6; }
+        .markdown-body { font-family: 'Outfit', sans-serif; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin-top: 1.5em; margin-bottom: 0.5em; }
+        .markdown-body a { color: var(--primary-hover); }
+        .markdown-body pre { background: #0d1117; padding: 1rem; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); margin: 1em 0; }
+        
+        /* Tabulator Custom Tweaks */
+        .tabulator { background-color: transparent !important; border: none !important; font-size: 0.85rem;}
+        .tabulator-row { background-color: var(--surface) !important; border-bottom: 1px solid var(--border) !important;}
+        .tabulator-row:nth-child(even) { background-color: rgba(255,255,255,0.02) !important; }
+        .tabulator-header { background-color: var(--bg) !important; border-bottom: 2px solid var(--border) !important; }
+        .tabulator-col { background-color: var(--bg) !important; border-right: 1px solid var(--border) !important; }
     </style>
 </head>
 <body>
 
     <header>
         <div class="logo">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M3 15h6"/><path d="M3 18h6"/><path d="M14 15h6"/><path d="M14 18h6"/></svg>
-            Resilient JSON
+            <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M3 15h6"/><path d="M3 18h6"/><path d="M14 15h6"/><path d="M14 18h6"/></svg>
+            Resilient JSON Workspace
         </div>
         <div class="actions">
             <button onclick="formatJSON()" class="primary">Format & Repair</button>
@@ -359,26 +292,38 @@
         <!-- Input Pane -->
         <div class="pane">
             <div class="pane-header">
-                <span>Input (Paste your messy Python Dict or JSON here)</span>
-                <button class="action-btn" onclick="document.getElementById('input').value = ''">Clear</button>
+                <span>Input</span>
+                <div class="actions">
+                    <button class="action-btn" id="copyOriginalBtn" style="display:none;" onclick="copyOriginal()">Copy Original</button>
+                    <button class="action-btn" onclick="document.getElementById('input').value = ''">Clear</button>
+                </div>
             </div>
             <div class="editor-container">
                 <textarea id="input" placeholder="Paste string here... e.g. {'key': 'value', 'None': None, 'True': False}"></textarea>
                 <div id="errorOverlay" class="error-overlay">
-                    <button class="close-error" onclick="hideError()">×</button>
+                    <button class="close-error" style="background:none;border:none;color:white;position:absolute;top:5px;right:10px;cursor:pointer" onclick="hideError()">×</button>
                     <div id="errorText"></div>
                 </div>
             </div>
         </div>
 
         <!-- Output Pane -->
-        <div class="pane">
+        <div class="pane" id="outputPane">
             <div class="pane-header">
-                <span>Output Viewer</span>
-                <div style="display:flex; gap: 0.5rem;">
-                    <button class="action-btn" onclick="expandAll()">Expand All</button>
-                    <button class="action-btn" onclick="collapseAll()">Collapse All</button>
-                    <button class="action-btn" onclick="copyValidJSON()">Copy Valid JSON</button>
+                <div class="pane-tabs">
+                    <button class="tab-btn active" id="tabTree" onclick="switchTab('tree')">Tree View</button>
+                    <button class="tab-btn" id="tabGrid" onclick="switchTab('grid')">Grid View</button>
+                    <button class="tab-btn" id="tabRaw" onclick="switchTab('raw')">Raw JSON</button>
+                </div>
+                <div style="display:flex; gap: 0.3rem; align-items: center;">
+                    <button class="action-btn" id="minifyBtn" style="display:none;" onclick="toggleRawFormat()">Minify</button>
+                    <button class="action-btn" style="background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.5); color: #34d399;" onclick="pushToInput()">Push to Input</button>
+                    <button class="action-btn" id="expandAllBtn" onclick="expandAll()">Expand</button>
+                    <button class="action-btn" id="collapseAllBtn" onclick="collapseAll()">Collapse</button>
+                    <button class="action-btn icon-btn" id="fullscreenBtn" title="Show full screen (ESC to exit)" onclick="toggleFullscreen()">
+                        <svg id="expandIcon" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                        <svg id="compressIcon" viewBox="0 0 24 24" style="display:none;"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/></svg>
+                    </button>
                 </div>
             </div>
             <div class="output-container" id="output">
@@ -386,10 +331,13 @@
                     Hit "Format & Repair" to see the magic.
                 </div>
             </div>
+            <div class="editor-container" id="rawEditorContainer" style="display:none;">
+                <textarea id="rawEditor" onblur="syncRawToJSON()"></textarea>
+            </div>
         </div>
     </div>
 
-    <!-- Markdown Modal -->
+    <!-- Modals -->
     <div class="modal-overlay" id="mdModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -402,15 +350,15 @@
 
     <script>
         let currentValidData = null;
+        let originalRawInput = null;
+        let activeTab = 'tree';
+        let tabulatorTable = null;
+        const previewCache = {};
 
         function escapeHtml(unsafe) {
-            return (unsafe || "")
-                .toString()
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
+            return (unsafe || "").toString()
+                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
 
         function showError(msg) {
@@ -418,27 +366,19 @@
             document.getElementById('errorOverlay').classList.add('show');
         }
 
-        function hideError() {
-            document.getElementById('errorOverlay').classList.remove('show');
-        }
+        function hideError() { document.getElementById('errorOverlay').classList.remove('show'); }
 
         function fixPythonStrings(str) {
             let res = str;
-            // Fix None, True, False when they are values in dictionaries
             res = res.replace(/:\s*None\b/g, ': null');
             res = res.replace(/:\s*True\b/g, ': true');
             res = res.replace(/:\s*False\b/g, ': false');
-            
-            // Fix in lists/arrays
             res = res.replace(/,\s*None\b/g, ', null');
             res = res.replace(/,\s*True\b/g, ', true');
             res = res.replace(/,\s*False\b/g, ', false');
-            
-            // Fix at beginning of lists
             res = res.replace(/\[\s*None\b/g, '[null');
             res = res.replace(/\[\s*True\b/g, '[true');
             res = res.replace(/\[\s*False\b/g, '[false');
-            
             return res;
         }
 
@@ -448,7 +388,12 @@
             let rawStr = inputEl.value.trim();
             if (!rawStr) return;
 
-            // Remove typical prefixes when pasting from logs
+            // Save original if first time
+            if (!originalRawInput) {
+                originalRawInput = rawStr;
+                document.getElementById('copyOriginalBtn').style.display = 'inline-block';
+            }
+
             rawStr = rawStr.replace(/^JSON:\s*/i, '');
             rawStr = rawStr.replace(/^```json\s*/i, '').replace(/```\s*$/i, '');
 
@@ -456,36 +401,105 @@
             let parsedData;
 
             try {
-                // JSON5 handles single quotes, unquoted keys, trailing commas, etc.
                 parsedData = JSON5.parse(cleanedStr);
             } catch (e) {
-                showError("Failed to parse: " + e.message + "\n\nAttempted string:\n" + cleanedStr.substring(0, 300) + (cleanedStr.length > 300 ? "..." : ""));
+                showError("Failed to parse: " + e.message);
                 return;
             }
 
             currentValidData = parsedData;
-            renderTree(parsedData);
+            refreshActiveView();
         }
 
-        // Generate a random ID for previews to avoid quote escaping issues in HTML string
-        const previewCache = {};
-
-        window.previewText = function(cacheId, mode) {
-            const text = previewCache[cacheId];
-            const modal = document.getElementById('mdModal');
-            const body = document.getElementById('mdBody');
-            if (mode === 'markdown') {
-                body.innerHTML = DOMPurify.sanitize(marked.parse(text));
-            } else {
-                body.innerHTML = '<pre style="white-space: pre-wrap; font-family: \'Fira Code\', monospace;">' + escapeHtml(text) + '</pre>';
+        function copyOriginal() {
+            if (originalRawInput) {
+                navigator.clipboard.writeText(originalRawInput);
+                alert("Original text copied to clipboard!");
             }
-            modal.classList.add('active');
         }
 
-        window.closeModal = function() {
-            document.getElementById('mdModal').classList.remove('active');
+        function pushToInput() {
+            if (activeTab === 'grid') syncGridToJSON();
+            if (activeTab === 'raw') syncRawToJSON();
+            if (!currentValidData) return;
+            const formatted = JSON.stringify(currentValidData, null, 2);
+            document.getElementById('input').value = formatted;
         }
 
+        function switchTab(tab) {
+            if (activeTab === 'grid' && tab !== 'grid') syncGridToJSON();
+            if (activeTab === 'raw' && tab !== 'raw') syncRawToJSON();
+            
+            activeTab = tab;
+            document.getElementById('tabTree').classList.toggle('active', tab === 'tree');
+            document.getElementById('tabGrid').classList.toggle('active', tab === 'grid');
+            document.getElementById('tabRaw').classList.toggle('active', tab === 'raw');
+            
+            document.getElementById('expandAllBtn').style.display = tab === 'tree' ? 'inline-block' : 'none';
+            document.getElementById('collapseAllBtn').style.display = tab === 'tree' ? 'inline-block' : 'none';
+            document.getElementById('minifyBtn').style.display = tab === 'raw' ? 'inline-block' : 'none';
+            
+            const outContainer = document.getElementById('output');
+            const rawContainer = document.getElementById('rawEditorContainer');
+            
+            if (tab === 'raw') {
+                outContainer.style.display = 'none';
+                rawContainer.style.display = 'flex';
+                isRawMinified = false;
+                document.getElementById('minifyBtn').innerText = 'Minify';
+                document.getElementById('rawEditor').value = JSON.stringify(currentValidData, null, 2);
+            } else {
+                outContainer.style.display = 'block';
+                rawContainer.style.display = 'none';
+                if (tab === 'grid') outContainer.classList.add('no-pad');
+                else outContainer.classList.remove('no-pad');
+                refreshActiveView();
+            }
+        }
+
+        function syncRawToJSON() {
+            const rawStr = document.getElementById('rawEditor').value.trim();
+            try {
+                currentValidData = JSON5.parse(rawStr);
+            } catch (e) {
+                showError("Raw Editor contains invalid JSON. Fix errors before switching or pushing: " + e.message);
+                throw e; // Stop execution for format toggle if invalid
+            }
+        }
+
+        let isRawMinified = false;
+        function toggleRawFormat() {
+            try {
+                syncRawToJSON();
+                if (!currentValidData) return;
+                isRawMinified = !isRawMinified;
+                const editor = document.getElementById('rawEditor');
+                if (isRawMinified) {
+                    editor.value = JSON.stringify(currentValidData);
+                    document.getElementById('minifyBtn').innerText = 'Format';
+                } else {
+                    editor.value = JSON.stringify(currentValidData, null, 2);
+                    document.getElementById('minifyBtn').innerText = 'Minify';
+                }
+            } catch (e) {
+                // syncRawToJSON already showed the error toast
+            }
+        }
+
+        function refreshActiveView() {
+            if (!currentValidData) return;
+            for(let k in previewCache) delete previewCache[k];
+            
+            if (activeTab === 'tree') {
+                if (tabulatorTable) { tabulatorTable.destroy(); tabulatorTable = null; }
+                const container = document.getElementById('output');
+                container.innerHTML = '<div class="tree-wrapper" id="treeView">' + createTreeHTML(currentValidData, null, true, []) + '</div>';
+            } else {
+                renderGrid(currentValidData);
+            }
+        }
+
+        /* --- TREE VIEW LOGIC --- */
         function createTreeHTML(data, keyName = null, isLast = true) {
             const keyHTML = keyName !== null ? `<span class="tree-key">"${escapeHtml(keyName)}"</span>: ` : '';
 
@@ -495,31 +509,28 @@
             
             if (typeof data === 'string') {
                 const escaped = escapeHtml(data);
-                const isMarkdown = data.includes('\\n') || data.includes('\n') || data.includes('#') || data.includes('**') || data.includes('```');
+                const isHTML = /<\/?[a-z][\s\S]*>/i.test(data);
+                const isMarkdown = data.includes('\\n') || data.includes('\n') || data.includes('#') || data.includes('**');
                 let extra = '';
                 
-                // If string is long or contains markdown/newlines
-                if (data.length > 60 || data.includes('\\n') || data.includes('\n')) {
+                if (data.length > 60 || data.includes('\n')) {
                     const cacheId = 'str_' + Math.random().toString(36).substr(2, 9);
                     previewCache[cacheId] = data;
-                    const mode = isMarkdown ? "'markdown'" : "'text'";
-                    extra = `<button class="action-btn" onclick="previewText('${cacheId}', ${mode})">Preview ${isMarkdown ? 'Markdown' : 'Text'}</button>`;
+                    const mode = isHTML ? "'html'" : (isMarkdown ? "'markdown'" : "'text'");
+                    extra = `<button class="action-btn" onclick="previewText('${cacheId}', ${mode})">Preview ${isHTML ? 'HTML' : (isMarkdown ? 'Markdown' : 'Text')}</button>`;
                 }
                 
-                // Truncate visually
                 let displayStr = data;
                 if (displayStr.length > 80) displayStr = displayStr.substring(0, 80) + '...';
                 displayStr = escapeHtml(displayStr);
                 
-                return `<div class="tree-node">${keyHTML}<span class="tree-string">"${displayStr}"</span>${extra}${isLast?'':','}</div>`;
+                return `<div class="tree-node">${keyHTML}<span class="tree-quote">"</span><span class="tree-string">${displayStr}</span><span class="tree-quote">"</span>${extra}${isLast?'':','}</div>`;
             }
 
             if (Array.isArray(data)) {
                 if (data.length === 0) return `<div class="tree-node">${keyHTML}[]${isLast?'':','}</div>`;
                 let html = `<details open><summary>${keyHTML}[<span class="tree-info">${data.length} items</span>]</summary><div class="tree-children">`;
-                data.forEach((item, index) => {
-                    html += createTreeHTML(item, null, index === data.length - 1);
-                });
+                data.forEach((item, index) => { html += createTreeHTML(item, null, index === data.length - 1); });
                 html += `</div><div style="margin-left:1.5rem">]${isLast?'':','}</div></details>`;
                 return html;
             }
@@ -528,52 +539,126 @@
                 const keys = Object.keys(data);
                 if (keys.length === 0) return `<div class="tree-node">${keyHTML}{}${isLast?'':','}</div>`;
                 let html = `<details open><summary>${keyHTML}{<span class="tree-info">${keys.length} keys</span>}</summary><div class="tree-children">`;
-                keys.forEach((k, index) => {
-                    html += createTreeHTML(data[k], k, index === keys.length - 1);
-                });
+                keys.forEach((k, index) => { html += createTreeHTML(data[k], k, index === keys.length - 1); });
                 html += `</div><div style="margin-left:1.5rem">}${isLast?'':','}</div></details>`;
                 return html;
             }
         }
 
-        function renderTree(data) {
-            // Clear preview cache on new render to avoid memory leaks
-            for(let k in previewCache) delete previewCache[k];
+        /* --- GRID VIEW LOGIC --- */
+        function renderGrid(data) {
+            let gridContainer = document.getElementById('output');
+            let tableData = [];
             
-            const container = document.getElementById('output');
-            container.innerHTML = '<div class="tree-wrapper">' + createTreeHTML(data) + '</div>';
-        }
-
-        function expandAll() {
-            document.querySelectorAll('details').forEach(el => el.setAttribute('open', ''));
-        }
-
-        function collapseAll() {
-            document.querySelectorAll('details').forEach(el => el.removeAttribute('open'));
-        }
-
-        function copyValidJSON() {
-            if (!currentValidData) {
-                alert("Nothing to copy. Please format a valid JSON first.");
+            if (Array.isArray(data)) {
+                tableData = data;
+            } else if (typeof data === 'object' && data !== null) {
+                tableData = Object.entries(data).map(([k,v]) => ({ _Key: k, _Value: v }));
+            } else {
+                gridContainer.innerHTML = "<div style='padding:2rem;text-align:center'>Cannot render scalar values as grid.</div>";
                 return;
             }
-            const validStr = JSON.stringify(currentValidData, null, 2);
-            navigator.clipboard.writeText(validStr).then(() => {
-                alert("Copied Valid JSON to clipboard!");
+
+            gridContainer.innerHTML = '<div id="tabulatorTable"></div>';
+
+            tabulatorTable = new Tabulator("#tabulatorTable", {
+                data: tableData,
+                layout: "fitDataFill",
+                height: "100%",
+                autoColumns: true,
+                autoColumnsDefinitions: function(definitions) {
+                    definitions.forEach(def => {
+                        def.headerFilter = "input";
+                        def.editor = "input";
+                        def.formatter = function(cell) {
+                            let val = cell.getValue();
+                            if (typeof val === 'object' && val !== null) {
+                                const cacheId = 'str_' + Math.random().toString(36).substr(2, 9);
+                                previewCache[cacheId] = JSON.stringify(val, null, 2);
+                                return `<span style="color:var(--boolean-color)">[Object/Array]</span> <button class="action-btn" style="padding:0.1rem 0.3rem" onclick="previewText('${cacheId}', 'json')">Expand</button>`;
+                            }
+                            if (typeof val === 'string' && (val.length > 50 || val.includes('\n'))) {
+                                const cacheId = 'str_' + Math.random().toString(36).substr(2, 9);
+                                previewCache[cacheId] = val;
+                                const isHTML = /<\/?[a-z][\s\S]*>/i.test(val);
+                                const mode = isHTML ? 'html' : 'text';
+                                return `<span>${escapeHtml(val.substring(0,30))}...</span> <button class="action-btn" style="padding:0.1rem 0.3rem" onclick="previewText('${cacheId}', '${mode}')">View</button>`;
+                            }
+                            return escapeHtml(String(val));
+                        };
+                    });
+                    return definitions;
+                }
             });
         }
 
-        // Close modal on background click
+        function syncGridToJSON() {
+            if (tabulatorTable) {
+                let currentTableData = tabulatorTable.getData();
+                if (Array.isArray(currentValidData)) {
+                    currentValidData = currentTableData; // It mutates, but reassignment is safe
+                } else {
+                    let newObj = {};
+                    currentTableData.forEach(row => { newObj[row._Key] = row._Value; });
+                    currentValidData = newObj;
+                }
+            }
+        }
+
+        /* --- UTILS --- */
+        window.previewText = function(cacheId, mode) {
+            try {
+                const text = previewCache[cacheId] || "";
+                const modal = document.getElementById('mdModal');
+                const body = document.getElementById('mdBody');
+                if (mode === 'html') {
+                    body.innerHTML = DOMPurify.sanitize(text);
+                } else if (mode === 'markdown') {
+                    body.innerHTML = DOMPurify.sanitize(marked.parse(text));
+                } else if (mode === 'json') {
+                    body.innerHTML = '<pre style="white-space: pre-wrap; font-family: \'Fira Code\', monospace; color: var(--string-color)">' + escapeHtml(text) + '</pre>';
+                } else {
+                    body.innerHTML = '<pre style="white-space: pre-wrap; font-family: \'Fira Code\', monospace;">' + escapeHtml(text) + '</pre>';
+                }
+                modal.classList.add('active');
+            } catch (err) {
+                console.error(err);
+                alert("Error generating preview: " + err.message);
+            }
+        }
+
+        window.closeModal = function() { document.getElementById('mdModal').classList.remove('active'); }
+        function expandAll() { document.querySelectorAll('details').forEach(el => el.setAttribute('open', '')); }
+        function collapseAll() { document.querySelectorAll('details').forEach(el => el.removeAttribute('open')); }
+        
+        function toggleFullscreen() {
+            const pane = document.getElementById('outputPane');
+            const expandIcon = document.getElementById('expandIcon');
+            const compressIcon = document.getElementById('compressIcon');
+            if (pane.classList.contains('fullscreen')) {
+                pane.classList.remove('fullscreen');
+                expandIcon.style.display = 'block'; compressIcon.style.display = 'none';
+            } else {
+                pane.classList.add('fullscreen');
+                expandIcon.style.display = 'none'; compressIcon.style.display = 'block';
+            }
+        }
+
         window.addEventListener('click', (e) => {
             const modal = document.getElementById('mdModal');
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeModal();
+            if (e.target === modal) closeModal();
         });
         
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('mdModal');
+                if (modal.classList.contains('active')) closeModal();
+                else {
+                    const pane = document.getElementById('outputPane');
+                    if (pane && pane.classList.contains('fullscreen')) toggleFullscreen();
+                }
+            }
+        });
     </script>
 </body>
 </html>

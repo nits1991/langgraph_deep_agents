@@ -1,0 +1,153 @@
+<mxfile host="Electron" pages="2">
+  <diagram name="Agent Sequence" id="agent_seq_1">
+    <mxGraphModel dx="1856" dy="651" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="user" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};participant=umlActor;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" value="User" vertex="1">
+          <mxGeometry height="950" width="20" x="90" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="agent" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#ffcc99;strokeColor=#36393d;" value="Agent Graph" vertex="1">
+          <mxGeometry height="950" width="120" x="240" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="llm" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#fa6800;fontColor=#000000;strokeColor=#C73500;" value="Gemini 2.5 Flash" vertex="1">
+          <mxGeometry height="950" width="120" x="440" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="tool" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#76608a;fontColor=#ffffff;strokeColor=#432D57;" value="Tool: calculator" vertex="1">
+          <mxGeometry height="950" width="120" x="640" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="state" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#6d8764;fontColor=#ffffff;strokeColor=#3A5431;" value="CalcState" vertex="1">
+          <mxGeometry height="950" width="120" x="840" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_0" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;" target="agent" value="1. invoke(user_query)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="100" y="120" as="sourcePoint" />
+            <mxPoint x="300" y="120" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_1" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;" target="llm" value="2. predict(messages)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="300" y="160" as="sourcePoint" />
+            <mxPoint x="500" y="160" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_2" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;dashed=1;" target="agent" value="3. tool_call: calculator_wstate(DIV, 2, 1)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="500" y="200" as="sourcePoint" />
+            <mxPoint x="300" y="200" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_3" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;" target="tool" value="4. execute(DIV, 2, 1)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="300" y="240" as="sourcePoint" />
+            <mxPoint x="700" y="240" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_4" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;" target="state" value="5. Command(update={ops: ...})">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="700" y="280" as="sourcePoint" />
+            <mxPoint x="900" y="280" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_5" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;dashed=1;" target="agent" value="6. ToolMessage(result)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="700" y="320" as="sourcePoint" />
+            <mxPoint x="300" y="320" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_6" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;" target="llm" value="7. predict(messages + ToolMessage)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="300" y="360" as="sourcePoint" />
+            <mxPoint x="500" y="360" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_7" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;dashed=1;" target="agent" value="8. tool_call: calculator_wstate(ADD, 4, 7)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="500" y="400" as="sourcePoint" />
+            <mxPoint x="300" y="400" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_8" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;" target="tool" value="9. execute(ADD, 4, 7)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="300" y="440" as="sourcePoint" />
+            <mxPoint x="700" y="440" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_9" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;" target="state" value="10. Command(update={ops: ...})">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="700" y="480" as="sourcePoint" />
+            <mxPoint x="900" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_10" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;dashed=1;" target="agent" value="11. ToolMessage(result)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="700" y="520" as="sourcePoint" />
+            <mxPoint x="300" y="520" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_11" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;" target="llm" value="12. predict(messages + ToolMessage)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="300" y="560" as="sourcePoint" />
+            <mxPoint x="500" y="560" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_12" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;dashed=1;" target="agent" value="13. tool_call: calculator_wstate(DIV, 6, 3)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="500" y="600" as="sourcePoint" />
+            <mxPoint x="300" y="600" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_13" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;" target="tool" value="14. execute(DIV, 6, 3)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="300" y="640" as="sourcePoint" />
+            <mxPoint x="700" y="640" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_14" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;" target="state" value="15. Command(update={ops: ...})">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="700" y="680" as="sourcePoint" />
+            <mxPoint x="900" y="680" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_15" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;dashed=1;" target="agent" value="16. ToolMessage(result)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="700" y="720" as="sourcePoint" />
+            <mxPoint x="300" y="720" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_16" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;" target="llm" value="17. predict(messages + ToolMessage)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="300" y="760" as="sourcePoint" />
+            <mxPoint x="500" y="760" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_17" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;dashed=1;" target="agent" value="18. AIMessage(&#39;Results...&#39;)">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="500" y="800" as="sourcePoint" />
+            <mxPoint x="300" y="800" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_18" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;startArrow=none;startFill=0;dashed=1;" target="user" value="19. return result">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <mxPoint x="300" y="840" as="sourcePoint" />
+            <mxPoint x="100" y="840" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sI834wR-pErLaSzwZBth-1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="User" vertex="1">
+          <mxGeometry height="30" width="60" x="70" y="21" as="geometry" />
+        </mxCell>
+        <mxCell id="sI834wR-pErLaSzwZBth-2" parent="1" style="shape=note2;boundedLbl=1;whiteSpace=wrap;html=1;size=25;verticalAlign=top;align=center;" value="The User can be very Stupid&lt;div&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="-30" y="90" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="QWFxsgsNSVGJRYFzo318" name="Page-2">
+    <mxGraphModel dx="680" dy="586" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
