@@ -12,8 +12,8 @@ from state import DeepAgentState
 from IPython import core
 from IPython import core
 import uuid
-import base64
 import os
+import base64
 ## Model for summarization to be used only for generaing summaries within the web_research agent tool
 import httpx
 from typing import List
@@ -27,10 +27,18 @@ from pydantic import BaseModel
 from tavily import TavilyClient
 from langchain.chat_models import init_chat_model
 from markdownify import markdownify
-summarization_model = init_chat_model(
-    model="qwen3:8b",
-    model_provider="ollama"
-    )
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
+
+from langchain_groq import ChatGroq
+
+
+summarization_model = ChatNVIDIA(
+  model="meta/llama-3.1-8b-instruct",
+  api_key="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",
+  temperature=1,
+  top_p=0.95,
+  max_completion_tokens=8192,
+)
 
 ## Search Engine clil
 tavily_client = TavilyClient()
@@ -225,7 +233,7 @@ def tavily_search_tool(
     return Command(
         update={
             "files" : files,
-            "message":[
+            "messages":[
                 ToolMessage(summary_text,tool_call_id=tool_call_id)
             ]
         }
