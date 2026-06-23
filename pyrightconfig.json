@@ -1,0 +1,10 @@
+{
+  "reportDeprecated": "none",
+  "reportArgumentType": "none",
+  "reportUnknownVariableType": "none",
+  "reportMissingTypeArgument": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownParameterType": "none",
+  "reportReturnType": "none",
+  "reportUnknownArgumentType": "none",
+}

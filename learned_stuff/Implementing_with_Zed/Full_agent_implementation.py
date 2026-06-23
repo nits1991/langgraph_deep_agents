@@ -1,54 +1,74 @@
-"""Research Tools.
+"""Web Research Assistant.
 
-This module provides search and content processing utilities for the research agent,
-including web search capabilities and content summarization tools.
+This script provides a tool for conducting web research and summarizing content using various APIs. It includes tools for searching the web, summarizing webpage content, and managing task delegation.
+
+Key Features:
+- Web search with Tavily API
+- Summarization of webpage content using OpenAI's GPT-5 model
+- Storage and retrieval of research results
+- Task delegation to sub-agents
+
+Usage:
+1. Run the script to enter interactive mode.
+2. Enter a search query to start the web research process.
+3. Analyze the summaries and decide on next steps using the provided tools.
+
+Dependencies:
+- Python 3.x
+- dotenv
+- httpx
+- langchain
+- markdownify
+- pydantic
+- tavily
+
+Installation:
+1. Clone the repository: https://github.com/your-repo/web-research-assistant.git
+2. Install dependencies: pip install -r requirements.txt
+3. Set up environment variables in a .env file:
+    OPENAI_API_KEY_2=your-openai-api-key
 """
 
 import base64
 import os
 import uuid
 from datetime import datetime
-from typing import Annotated, List, Literal
+from typing import Annotated, Literal
 
-## Model for summarization to be used only for generaing summaries within the web_research agent tool
 import httpx
-from IPython import core
+from dotenv import load_dotenv
+from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, ToolMessage
 from langchain_core.tools import InjectedToolArg, InjectedToolCallId, tool
-from langchain_groq import ChatGroq
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from markdownify import markdownify
-from prompts import SUMMARIZE_WEB_SEARCH
 from pydantic import BaseModel, Field
-from state import DeepAgentState
 from tavily import TavilyClient
 
-summarization_model = ChatNVIDIA(
-    model="meta/llama-3.1-8b-instruct",
-    api_key="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",
-    temperature=1,
-    top_p=0.95,
-    max_completion_tokens=8192,
-)
+from .file_tools import ls, read_file, write_file
+from .prompts import *  # noqa: F403
+from .state import DeepAgentState
+from .task_tool import _create_task_tool
+from .todo_tools import read_todos, write_todos
+from .utils import *  # noqa: F403
+
+load_dotenv()  # pyright: ignore[reportUnusedCallResult]
+
+openai_key = os.getenv("OPENAI_API_KEY_2")
+
+summarization_model = init_chat_model(model="gpt-5-nano", api_key=openai_key)
 
 ## Search Engine clil
 tavily_client = TavilyClient()
 
 
-## Summarization model should only respond with structured output
 class Summary(BaseModel):
-    """Schema for web page content summary"""
+    """Schema for web page content summary."""
 
     filename: str = Field(description="Name of the file to store the summary")
     summary: str = Field(description="Key Learnings from the web page")
-
-
-def get_today_str() -> str:
-    """Get Current date in human readable format"""
-    return datetime.now().strftime("%a %b % -d, %Y")
 
 
 def run_tavily_search(
@@ -74,10 +94,12 @@ def run_tavily_search(
         include_raw_content=include_raw_content,
         topic=topic,
     )
-    print(
-        f"search_result_links from run_tavily_search for query :{search_query} are : \n{search_result_links}"
-    )
     return search_result_links
+
+
+def get_today_str() -> str:
+    """Get Current date in human readable format."""
+    return datetime.now().strftime("%a %b % -d, %Y")
 
 
 def summarize_webpage_content(webpage_content: str) -> Summary:
@@ -98,14 +120,14 @@ def summarize_webpage_content(webpage_content: str) -> Summary:
         summary_and_filename = summarization_model_structured.invoke(
             [
                 HumanMessage(
-                    content=SUMMARIZE_WEB_SEARCH.format(
+                    content=SUMMARIZE_WEB_SEARCH.format(  # noqa: F405
                         webpage_content=webpage_content, date=get_today_str
                     )
                 )
             ]
         )
 
-        return summary_and_filename  # type: ignore
+        return summary_and_filename
     except Exception:
         # Return a basic summary on failure
         return Summary(
@@ -116,7 +138,7 @@ def summarize_webpage_content(webpage_content: str) -> Summary:
         )
 
 
-def process_search_results(search_result_hits: dict) -> List[dict]:
+def process_search_results(search_result_hits: dict) -> list[dict]:
     """Process search results by summarizing content where available.
 
     Args:
@@ -154,7 +176,7 @@ def process_search_results(search_result_hits: dict) -> List[dict]:
                 filename="connection_error.md",
                 summary=search_result.get(
                     "content",
-                    f"Could not fetch URL (timeout/connection error). Try another search.",
+                    "Could not fetch URL (timeout/connection error). Try another search.",
                 ),
             )
 
@@ -176,6 +198,7 @@ def process_search_results(search_result_hits: dict) -> List[dict]:
                 "raw_content": raw_content,
             }
         )
+
     return processed_results
 
 
@@ -273,3 +296,79 @@ def think_tool(reflection: str) -> str:
         Confirmation that reflection was recorded for decision-making
     """
     return f"Reflection recorded: {reflection}"
+
+
+model = init_chat_model(model="gpt-5-nano", api_key=openai_key)
+
+max_concurrent_research_units = 3
+max_researcher_iterations = 3
+
+
+sub_agent_tools = [tavily_search_tool, think_tool, read_file]
+built_in_tools = [ls, read_file, write_file, write_todos, read_todos, think_tool]
+
+# Create research sub-agent
+research_sub_agent = {
+    "name": "research-agent",
+    "description": "Delegate research to the sub-agent researcher. Only give this researcher one topic at a time.",
+    "prompt": RESEARCHER_INSTRUCTIONS.format(date=get_today_str()),
+    "tools": ["tavily_search_tool", "think_tool", "read_file"],
+}
+
+task_tool = _create_task_tool(
+    sub_agent_tools, [research_sub_agent], model, DeepAgentState
+)
+
+
+delegation_tools = [task_tool]
+
+all_tools = sub_agent_tools + built_in_tools + delegation_tools
+
+SUBAGENT_INSTRUCTIONS = SUBAGENT_USAGE_INSTRUCTIONS.format(
+    max_concurrent_research_units=max_concurrent_research_units,
+    max_researcher_iterations=max_researcher_iterations,
+    date=datetime.now().strftime("%a %b %-d, %Y"),
+)
+
+
+MAIN_AGENT_INSTRUCTION = (
+    "# TODO MANAGEMENT\n"
+    + TODO_USAGE_INSTRUCTIONS
+    + "\n\n"
+    + "=" * 80
+    + "\n\n"
+    + "# FILE SYSTEM USAGE\n"
+    + FILE_USAGE_INSTRUCTIONS
+    + "\n\n"
+    + "=" * 80
+    + "\n\n"
+    + "# SUB-AGENT DELEGATION\n"
+    + SUBAGENT_INSTRUCTIONS
+)
+
+
+main_agent = create_agent(
+    model=model,
+    tools=all_tools,
+    system_prompt=MAIN_AGENT_INSTRUCTION,
+    state_schema=DeepAgentState,
+)
+
+
+def run_agent():
+    """Run Agent.
+
+    Args:
+    - None
+
+    Returns:
+    - None
+    """
+    while True:
+        user_input = input("User: ")
+        response = main_agent.invoke({"messages": [(HumanMessage(user_input))]})
+        format_messages(response["messages"])
+
+
+if __name__ == "__main__":
+    run_agent()

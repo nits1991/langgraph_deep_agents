@@ -61,10 +61,10 @@ lint.ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D", "UP"]
+"learned_stuff/Implementing_with_Zed/Full_agent_implementation.py" = ["F405"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.pyright]
 extraPaths = ["learned_stuff"]
-
